@@ -28,28 +28,27 @@ import org.openrewrite.java.tree.JavaType;
 import org.openrewrite.java.tree.TypeUtils;
 
 import javax.annotation.Nullable;
-import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-public class ConvertApiResponseContainerToContext extends Recipe {
+public class ConvertApiResponseContainerToContent extends Recipe {
 
     private static final AnnotationMatcher ANNOTATION_MATCHER = new AnnotationMatcher("@io.swagger.v3.oas.annotations.responses.ApiResponse(response = *, responseContainer = \"List\")");
 
     @Override
     public String getDisplayName() {
-        return "Convert API response container to context";
+        return "Convert API response container to content";
     }
 
     @Override
     public String getDescription() {
-        return "Convert API response container to context.";
+        return "Convert API response container to content.";
     }
 
     private String annotationType = "io.swagger.v3.oas.annotations.responses.ApiResponse";
 
-    private String attributeName = "context";
-    private String attributeValue = "changeme";
+    private String attributeName = "content";
+    private String attributeValue = "org.openrewrite.openapi.swagger.Donut.class";
     boolean addOnly = true;
 
 
@@ -64,9 +63,9 @@ public class ConvertApiResponseContainerToContext extends Recipe {
 
                 List<Expression> currentArgs = a.getArguments();
 
-                boolean contextWasAlreadyAdded = currentArgs.stream().anyMatch(arg
-                        -> ((J.Identifier) ((J.Assignment) arg).getVariable()).getSimpleName().equalsIgnoreCase("context"));
-                if (contextWasAlreadyAdded) return a;
+                boolean contentWasAlreadyAdded = currentArgs.stream().anyMatch(arg
+                        -> ((J.Identifier) ((J.Assignment) arg).getVariable()).getSimpleName().equalsIgnoreCase("content"));
+                if (contentWasAlreadyAdded) return a;
 
                 String newAttributeValue = maybeQuoteStringArgument(attributeName, attributeValue, a);
 
@@ -102,9 +101,16 @@ public class ConvertApiResponseContainerToContext extends Recipe {
                 }
                 // There was no existing value to update, so add a new value into the argument list
                 String effectiveName = (attributeName == null) ? "value" : attributeName;
+                // Try annotation as an attribute value
+//                J.Annotation newAnnotationAttributeValue =
+//                        (J.Annotation)JavaTemplate.builder("@Content")
+////                                .imports(importComponent)
+//                                .build();
+
                 //noinspection ConstantConditions
-                J.Assignment as = (J.Assignment) ((J.Annotation) JavaTemplate.builder("#{} = #{}")
+                J.Assignment as = (J.Assignment) ((J.Annotation) JavaTemplate.builder("#{} = @Content(array = @ArraySchema(uniqueItems = false, schema = @Schema(implementation = #{})))")
                         .contextSensitive()
+                        .imports("io.swagger.v3.oas.annotations.media.Content")
                         .build()
                         .apply(getCursor(), a.getCoordinates().replaceArguments(), effectiveName, newAttributeValue)
                 ).getArguments().get(0);

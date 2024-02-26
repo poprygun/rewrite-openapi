@@ -23,7 +23,7 @@ import org.openrewrite.test.RewriteTest;
 
 import static org.openrewrite.java.Assertions.java;
 
-class ConvertApiResponseContainerToContextTest implements RewriteTest {
+class ConvertApiResponseContainerToContentTest implements RewriteTest {
     @Override
     public void defaults(RecipeSpec spec) {
         spec.recipeFromResources("org.openrewrite.openapi.swagger.MigrateApiResponsesToApiResponses")
@@ -32,7 +32,7 @@ class ConvertApiResponseContainerToContextTest implements RewriteTest {
 
     @Test
     @DocumentExample
-    void convertApiResponseContainerToContext() {
+    void convertApiResponseContainerToContent() {
         rewriteRun(
           //language=java
           java(

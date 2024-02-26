@@ -120,7 +120,7 @@ recipeList:
       oldAttributeName: "message"
       newAttributeName: "description"
 #  - org.openrewrite.openapi.swagger.ConvertApiResponseCodesToStrings
-  - org.openrewrite.openapi.swagger.ConvertApiResponseContainerToContext
+  - org.openrewrite.openapi.swagger.ConvertApiResponseContainerToContent
 
 ---
 type: specs.openrewrite.org/v1beta/recipe
