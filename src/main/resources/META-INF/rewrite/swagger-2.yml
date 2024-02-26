@@ -119,7 +119,8 @@ recipeList:
       annotationType: io.swagger.v3.oas.annotations.responses.ApiResponse
       oldAttributeName: "message"
       newAttributeName: "description"
-  - org.openrewrite.openapi.swagger.ConvertApiResponseCodesToStrings
+#  - org.openrewrite.openapi.swagger.ConvertApiResponseCodesToStrings
+  - org.openrewrite.openapi.swagger.ConvertApiResponseContainerToContext
 
 ---
 type: specs.openrewrite.org/v1beta/recipe

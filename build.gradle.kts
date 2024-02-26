@@ -10,6 +10,7 @@ dependencies {
     implementation(platform("org.openrewrite:rewrite-bom:$rewriteVersion"))
     implementation("org.openrewrite:rewrite-java")
     implementation("org.openrewrite.recipe:rewrite-java-dependencies:$rewriteVersion")
+    testImplementation("org.slf4j:slf4j-simple:2.0.12")
 
     testImplementation("org.openrewrite:rewrite-java-17")
     testImplementation("org.openrewrite:rewrite-test")
