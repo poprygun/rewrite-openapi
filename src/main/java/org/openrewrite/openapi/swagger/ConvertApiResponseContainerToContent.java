@@ -21,20 +21,22 @@ import org.openrewrite.Recipe;
 import org.openrewrite.TreeVisitor;
 import org.openrewrite.internal.ListUtils;
 import org.openrewrite.java.*;
+import org.openrewrite.java.marker.JavaSourceSet;
 import org.openrewrite.java.search.UsesType;
-import org.openrewrite.java.tree.Expression;
-import org.openrewrite.java.tree.J;
-import org.openrewrite.java.tree.JavaType;
-import org.openrewrite.java.tree.TypeUtils;
+import org.openrewrite.java.tree.*;
+import org.openrewrite.marker.Markers;
 
-import javax.annotation.Nullable;
+import java.util.Iterator;
 import java.util.List;
-import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.Optional;
+import java.util.stream.Collectors;
+
+import static org.openrewrite.Tree.randomId;
 
 public class ConvertApiResponseContainerToContent extends Recipe {
 
-    private static final AnnotationMatcher ANNOTATION_MATCHER = new AnnotationMatcher("@io.swagger.v3.oas.annotations.responses.ApiResponse(response = *, responseContainer = \"List\")");
-
+//    private static final AnnotationMatcher ANNOTATION_MATCHER = new AnnotationMatcher("@io.swagger.v3.oas.annotations.responses.ApiResponse(response = *, responseContainer = \"List\")");
+    private static final AnnotationMatcher ANNOTATION_MATCHER = new AnnotationMatcher("@io.swagger.v3.oas.annotations.responses.ApiResponse");
     @Override
     public String getDisplayName() {
         return "Convert API response container to content";
@@ -48,8 +50,6 @@ public class ConvertApiResponseContainerToContent extends Recipe {
     private String annotationType = "io.swagger.v3.oas.annotations.responses.ApiResponse";
 
     private String attributeName = "content";
-    private String attributeValue = "org.openrewrite.openapi.swagger.Donut.class";
-    boolean addOnly = true;
 
 
     @Override
@@ -57,92 +57,84 @@ public class ConvertApiResponseContainerToContent extends Recipe {
         return Preconditions.check(new UsesType<>(annotationType, false), new JavaIsoVisitor<ExecutionContext>() {
             @Override
             public J.Annotation visitAnnotation(J.Annotation a, ExecutionContext ctx) {
-                if (!ANNOTATION_MATCHER.matches(a)) {
-                    return a;
+                J.Annotation an = super.visitAnnotation(a, ctx);
+                if (!ANNOTATION_MATCHER.matches(an)) {
+                    return an;
                 }
 
-                List<Expression> currentArgs = a.getArguments();
+                List<Expression> currentArgs = an.getArguments();
 
                 boolean contentWasAlreadyAdded = currentArgs.stream().anyMatch(arg
                         -> ((J.Identifier) ((J.Assignment) arg).getVariable()).getSimpleName().equalsIgnoreCase("content"));
-                if (contentWasAlreadyAdded) return a;
+                if (contentWasAlreadyAdded) return an;
 
-                String newAttributeValue = maybeQuoteStringArgument(attributeName, attributeValue, a);
+                Optional<Expression> mayBeResponse = currentArgs.stream()
+                        .filter(arg -> ((J.Identifier) ((J.Assignment) arg).getVariable()).getSimpleName().equalsIgnoreCase("response"))
+                        .findFirst();
 
-                // First assume the value exists amongst the arguments and attempt to update it
-                AtomicBoolean foundAttributeWithDesiredValue = new AtomicBoolean(false);
-                final J.Annotation finalA = a;
-                List<Expression> newArgs = ListUtils.map(currentArgs, it -> {
-                    if (it instanceof J.Literal) {
-                        // The only way anything except an assignment can appear is if there's an implicit assignment to "value"
-                        if (attributeName == null || "value".equals(attributeName)) {
-                            if (newAttributeValue == null) {
-                                return null;
-                            }
-                            J.Literal value = (J.Literal) it;
-                            if (newAttributeValue.equals(value.getValueSource()) || Boolean.TRUE.equals(addOnly)) {
-                                foundAttributeWithDesiredValue.set(true);
-                                return it;
-                            }
-                            return ((J.Literal) it).withValue(newAttributeValue).withValueSource(newAttributeValue);
-                        } else {
-                            //noinspection ConstantConditions
-                            return ((J.Annotation) JavaTemplate.builder("value = #{}")
-                                    .contextSensitive()
-                                    .build()
-                                    .apply(getCursor(), finalA.getCoordinates().replaceArguments(), it)
-                            ).getArguments().get(0);
-                        }
-                    }
-                    return it;
-                });
-                if (foundAttributeWithDesiredValue.get() || newArgs != currentArgs) {
-                    return a.withArguments(newArgs);
+                if (!mayBeResponse.isPresent()) {
+                    return an;
                 }
-                // There was no existing value to update, so add a new value into the argument list
-                String effectiveName = (attributeName == null) ? "value" : attributeName;
-                // Try annotation as an attribute value
-//                J.Annotation newAnnotationAttributeValue =
-//                        (J.Annotation)JavaTemplate.builder("@Content")
-////                                .imports(importComponent)
-//                                .build();
 
+                Expression response = currentArgs.stream()
+                        .filter(arg -> ((J.Identifier) ((J.Assignment) arg).getVariable()).getSimpleName().equalsIgnoreCase("response"))
+                        .findFirst().get();
+
+                String newAttributeValue = ((J.Assignment) response).getAssignment().toString();
                 //noinspection ConstantConditions
                 J.Assignment as = (J.Assignment) ((J.Annotation) JavaTemplate.builder("#{} = @Content(array = @ArraySchema(uniqueItems = false, schema = @Schema(implementation = #{})))")
                         .contextSensitive()
-                        .imports("io.swagger.v3.oas.annotations.media.Content")
+                        .imports(
+                                "io.swagger.v3.oas.annotations.media.Content"
+                                , "io.swagger.v3.oas.annotations.media.Schema"
+                                , "io.swagger.v3.oas.annotations.media.ArraySchema"
+                        )
                         .build()
-                        .apply(getCursor(), a.getCoordinates().replaceArguments(), effectiveName, newAttributeValue)
+                        .apply(getCursor(), a.getCoordinates().replaceArguments(), attributeName, newAttributeValue)
                 ).getArguments().get(0);
                 List<Expression> newArguments = ListUtils.concat(as, a.getArguments());
-                a = a.withArguments(newArguments);
-                a = autoFormat(a, ctx);
 
 
-                return a;
+//                boolean contains = cu.getMarkers().findFirst(JavaSourceSet.class).get().getClasspath().stream().map(JavaType.FullyQualified::getFullyQualifiedName)
+//                        .collect(Collectors.toList()).contains("io.swagger.v3.oas.annotations.media.Content");
+
+                maybeAddImport("io.swagger.v3.oas.annotations.media.Content");
+                maybeAddImport("io.swagger.v3.oas.annotations.media.Schema");
+                maybeAddImport("io.swagger.v3.oas.annotations.media.ArraySchema");
+
+                J.CompilationUnit cu = getCursor().dropParentUntil(J.CompilationUnit.class::isInstance).getValue();
+
+                for (Iterator<J.Import> iterator = cu.getImports().iterator(); iterator.hasNext(); ) {
+                    J.Import next = iterator.next();
+                    System.out.println("---->" + next.toString());
+                }
+
+//                J.Import importToAdd = new J.Import(randomId(),
+//                        Space.EMPTY,
+//                        Markers.EMPTY,
+//                        new JLeftPadded<>(member == null ? Space.EMPTY : Space.SINGLE_SPACE,
+//                                member != null, Markers.EMPTY),
+//                        TypeTree.build(fullyQualifiedName +
+//                                (member == null ? "" : "." + member)).withPrefix(Space.SINGLE_SPACE),
+//                        null);
+
+//                doAfterVisit(new AddImport<>("io.swagger.v3.oas.annotations.media.Content", null, true));
+//                doAfterVisit(new AddImport<>("io.swagger.v3.oas.annotations.media.Schema", null, true));
+//                doAfterVisit(new AddImport<>("io.swagger.v3.oas.annotations.media.ArraySchema", null, true));
+
+                //make sure to remove legacy attribute arguments
+                Expression responseContainer = currentArgs.stream()
+                        .filter(arg -> ((J.Identifier) ((J.Assignment) arg).getVariable()).getSimpleName().equalsIgnoreCase("responseContainer"))
+                        .findFirst().get();
+
+                newArguments.remove(responseContainer);
+                newArguments.remove(response);
+
+                an = an.withArguments(newArguments);
+                an = autoFormat(an, ctx);
+//                System.out.println(TreeVisitingPrinter.printTree(getCursor()));
+                return an;
             }
         });
-    }
-
-    @Nullable
-    private static String maybeQuoteStringArgument(@Nullable String attributeName, @Nullable String attributeValue, J.Annotation annotation) {
-        if ((attributeValue != null) && attributeIsString(attributeName, annotation)) {
-            return "\"" + attributeValue + "\"";
-        } else {
-            return attributeValue;
-        }
-    }
-
-    private static boolean attributeIsString(@Nullable String attributeName, J.Annotation annotation) {
-        String actualAttributeName = (attributeName == null) ? "value" : attributeName;
-        JavaType.Class annotationType = (JavaType.Class) annotation.getType();
-        if (annotationType != null) {
-            for (JavaType.Method m : annotationType.getMethods()) {
-                if (m.getName().equals(actualAttributeName)) {
-                    return TypeUtils.isOfClassType(m.getReturnType(), "java.lang.String");
-                }
-            }
-        }
-        return false;
     }
 }
