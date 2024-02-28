@@ -58,53 +58,47 @@ public class ConvertApiResponseContainerToContent extends Recipe {
                     return an;
                 }
 
-                List<Expression> currentArgs = an.getArguments();
+                if (annotationAlreadyUpgraded(an)) return an;
 
-                //has been already upgraded
-                boolean contentWasAlreadyAdded = currentArgs.stream().anyMatch(arg
-                        -> ((J.Identifier) ((J.Assignment) arg).getVariable()).getSimpleName().equalsIgnoreCase("content"));
-                if (contentWasAlreadyAdded) return an;
-
-                Optional<Expression> mayBeResponseContainer = currentArgs.stream()
-                        .filter(arg -> ((J.Identifier) ((J.Assignment) arg).getVariable()).getSimpleName().equalsIgnoreCase("responseContainer"))
-                        .findFirst();
-
+                Optional<Expression> mayBeResponseContainer = findArgumentByName(an, "responseContainer");
                 if (!mayBeResponseContainer.isPresent()) {
                     return an;
                 }
 
-                Optional<Expression> mayBeResponse = currentArgs.stream()
-                        .filter(arg -> ((J.Identifier) ((J.Assignment) arg).getVariable()).getSimpleName().equalsIgnoreCase("response"))
-                        .findFirst();
-
-                J.Assignment as;
-                if (mayBeResponse.isPresent()) {
-                    Expression response = mayBeResponse.get();
-
-                    String newAttributeValue = ((J.Assignment) response).getAssignment().toString();
-                    as = (J.Assignment) ((J.Annotation) JavaTemplate.builder("#{} = @io.swagger.v3.oas.annotations.media.Content(array = @io.swagger.v3.oas.annotations.media.ArraySchema(uniqueItems = false, schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = #{})))")
-                            .contextSensitive()
-                            .build()
-                            .apply(getCursor(), a.getCoordinates().replaceArguments(), attributeName, newAttributeValue)
-                    ).getArguments().get(0);
-                } else {
-                    as = (J.Assignment) ((J.Annotation) JavaTemplate.builder("#{} = @io.swagger.v3.oas.annotations.media.Content(array = @io.swagger.v3.oas.annotations.media.ArraySchema(uniqueItems = false))")
-                            .contextSensitive()
-                            .build()
-                            .apply(getCursor(), a.getCoordinates().replaceArguments(), attributeName)
-                    ).getArguments().get(0);
-                }
+                Optional<Expression> mayBeResponse = findArgumentByName(an, "response");
+                J.Assignment as = createNewAssignment(a, mayBeResponse);
 
                 List<Expression> newArguments = ListUtils.concat(as, a.getArguments());
-
-                //make sure to remove legacy attribute arguments
-                mayBeResponse.ifPresent(r -> newArguments.remove(r));
-                mayBeResponseContainer.ifPresent(rc -> newArguments.remove(rc));
+                mayBeResponse.ifPresent(newArguments::remove);
+                mayBeResponseContainer.ifPresent(newArguments::remove);
 
                 an = an.withArguments(newArguments);
                 an = autoFormat(an, ctx);
-//                System.out.println(TreeVisitingPrinter.printTree(getCursor()));
                 return an;
+            }
+
+            private boolean annotationAlreadyUpgraded(J.Annotation an) {
+                return an.getArguments().stream().anyMatch(arg ->
+                        ((J.Identifier) ((J.Assignment) arg).getVariable()).getSimpleName().equalsIgnoreCase("content"));
+            }
+
+            private Optional<Expression> findArgumentByName(J.Annotation an, String name) {
+                return an.getArguments().stream()
+                        .filter(arg -> ((J.Identifier) ((J.Assignment) arg).getVariable()).getSimpleName().equalsIgnoreCase(name))
+                        .findFirst();
+            }
+
+            private J.Assignment createNewAssignment(J.Annotation a, Optional<Expression> mayBeResponse) {
+                String templateString = mayBeResponse.isPresent() ?
+                        "#{} = @io.swagger.v3.oas.annotations.media.Content(array = @io.swagger.v3.oas.annotations.media.ArraySchema(uniqueItems = false, schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = #{})))" :
+                        "#{} = @io.swagger.v3.oas.annotations.media.Content(array = @io.swagger.v3.oas.annotations.media.ArraySchema(uniqueItems = false))";
+
+                JavaTemplate.Builder templateBuilder = JavaTemplate.builder(templateString).contextSensitive();
+                Object[] templateArgs = mayBeResponse.map(expression -> new Object[]{attributeName, ((J.Assignment) expression).getAssignment().toString()}).orElseGet(() -> new Object[]{attributeName});
+
+                return (J.Assignment) ((J.Annotation) templateBuilder.build()
+                        .apply(getCursor(), a.getCoordinates().replaceArguments(), templateArgs))
+                        .getArguments().get(0);
             }
         });
     }
