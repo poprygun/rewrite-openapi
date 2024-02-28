@@ -60,38 +60,46 @@ public class ConvertApiResponseContainerToContent extends Recipe {
 
                 List<Expression> currentArgs = an.getArguments();
 
+                //has been already upgraded
                 boolean contentWasAlreadyAdded = currentArgs.stream().anyMatch(arg
                         -> ((J.Identifier) ((J.Assignment) arg).getVariable()).getSimpleName().equalsIgnoreCase("content"));
                 if (contentWasAlreadyAdded) return an;
+
+                Optional<Expression> mayBeResponseContainer = currentArgs.stream()
+                        .filter(arg -> ((J.Identifier) ((J.Assignment) arg).getVariable()).getSimpleName().equalsIgnoreCase("responseContainer"))
+                        .findFirst();
+
+                if (!mayBeResponseContainer.isPresent()) {
+                    return an;
+                }
 
                 Optional<Expression> mayBeResponse = currentArgs.stream()
                         .filter(arg -> ((J.Identifier) ((J.Assignment) arg).getVariable()).getSimpleName().equalsIgnoreCase("response"))
                         .findFirst();
 
-                if (!mayBeResponse.isPresent()) {
-                    return an;
+                J.Assignment as;
+                if (mayBeResponse.isPresent()) {
+                    Expression response = mayBeResponse.get();
+
+                    String newAttributeValue = ((J.Assignment) response).getAssignment().toString();
+                    as = (J.Assignment) ((J.Annotation) JavaTemplate.builder("#{} = @io.swagger.v3.oas.annotations.media.Content(array = @io.swagger.v3.oas.annotations.media.ArraySchema(uniqueItems = false, schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = #{})))")
+                            .contextSensitive()
+                            .build()
+                            .apply(getCursor(), a.getCoordinates().replaceArguments(), attributeName, newAttributeValue)
+                    ).getArguments().get(0);
+                } else {
+                    as = (J.Assignment) ((J.Annotation) JavaTemplate.builder("#{} = @io.swagger.v3.oas.annotations.media.Content(array = @io.swagger.v3.oas.annotations.media.ArraySchema(uniqueItems = false))")
+                            .contextSensitive()
+                            .build()
+                            .apply(getCursor(), a.getCoordinates().replaceArguments(), attributeName)
+                    ).getArguments().get(0);
                 }
 
-                Expression response = currentArgs.stream()
-                        .filter(arg -> ((J.Identifier) ((J.Assignment) arg).getVariable()).getSimpleName().equalsIgnoreCase("response"))
-                        .findFirst().get();
-
-                String newAttributeValue = ((J.Assignment) response).getAssignment().toString();
-                //noinspection ConstantConditions
-                J.Assignment as = (J.Assignment) ((J.Annotation) JavaTemplate.builder("#{} = @io.swagger.v3.oas.annotations.media.Content(array = @io.swagger.v3.oas.annotations.media.ArraySchema(uniqueItems = false, schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = #{})))")
-                        .contextSensitive()
-                        .build()
-                        .apply(getCursor(), a.getCoordinates().replaceArguments(), attributeName, newAttributeValue)
-                ).getArguments().get(0);
                 List<Expression> newArguments = ListUtils.concat(as, a.getArguments());
 
                 //make sure to remove legacy attribute arguments
-                Expression responseContainer = currentArgs.stream()
-                        .filter(arg -> ((J.Identifier) ((J.Assignment) arg).getVariable()).getSimpleName().equalsIgnoreCase("responseContainer"))
-                        .findFirst().get();
-
-                newArguments.remove(responseContainer);
-                newArguments.remove(response);
+                mayBeResponse.ifPresent(r -> newArguments.remove(r));
+                mayBeResponseContainer.ifPresent(rc -> newArguments.remove(rc));
 
                 an = an.withArguments(newArguments);
                 an = autoFormat(an, ctx);

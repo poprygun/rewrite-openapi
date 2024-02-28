@@ -63,6 +63,39 @@ class ConvertApiResponseContainerToContentTest implements RewriteTest {
     }
 
     @Test
+    @DocumentExample
+    void convertApiResponseContainerToContentWithoutResponseAttr() {
+        rewriteRun(
+          //language=java
+          java(
+            """
+              import io.swagger.annotations.ApiResponse;
+              import io.swagger.annotations.ApiResponses;
+              
+              class A {
+                  @ApiResponses(value = {
+                      @ApiResponse(responseContainer = "List")})
+                  void method() {}
+              }
+              
+              """,
+            """
+              import io.swagger.v3.oas.annotations.responses.ApiResponse;
+              import io.swagger.v3.oas.annotations.responses.ApiResponses;
+
+              class A {
+                  @ApiResponses(value = {
+                          @ApiResponse(content = @io.swagger.v3.oas.annotations.media.Content(array = @io.swagger.v3.oas.annotations.media.ArraySchema(uniqueItems = false)))})
+                  void method() {}
+              }
+              
+              """
+          )
+        );
+    }
+
+
+    @Test
     void noChangeOnAlreadyConverted() {
         rewriteRun(
           //language=java
