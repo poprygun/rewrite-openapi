@@ -50,13 +50,10 @@ class ConvertApiResponseContainerToContentTest implements RewriteTest {
             """
               import io.swagger.v3.oas.annotations.responses.ApiResponse;
               import io.swagger.v3.oas.annotations.responses.ApiResponses;
-              import io.swagger.v3.oas.annotations.media.Content;
-              import io.swagger.v3.oas.annotations.media.Schema;
-              import io.swagger.v3.oas.annotations.media.ArraySchema;
-              
+
               class A {
                   @ApiResponses(value = {
-                          @ApiResponse(content = @Content(array = @ArraySchema(uniqueItems = false, schema = @Schema(implementation = org.openrewrite.openapi.swagger.Donut.class))))})
+                          @ApiResponse(content = @io.swagger.v3.oas.annotations.media.Content(array = @io.swagger.v3.oas.annotations.media.ArraySchema(uniqueItems = false, schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = org.openrewrite.openapi.swagger.Donut.class))))})
                   void method() {}
               }
               
@@ -72,14 +69,11 @@ class ConvertApiResponseContainerToContentTest implements RewriteTest {
           java(
             """
               import io.swagger.v3.oas.annotations.responses.ApiResponse;
-              import io.swagger.v3.oas.annotations.responses.ApiResponses;              
-              import io.swagger.v3.oas.annotations.media.Content;
-              import io.swagger.v3.oas.annotations.media.Schema;
-              import io.swagger.v3.oas.annotations.media.ArraySchema;
+              import io.swagger.v3.oas.annotations.responses.ApiResponses;             
 
               class A {
                   @ApiResponses(value = {
-                          @ApiResponse(content = @Content(array = @ArraySchema(uniqueItems = false, schema = @Schema(implementation = org.openrewrite.openapi.swagger.Donut.class))))})
+                          @ApiResponse(content = @io.swagger.v3.oas.annotations.media.Content(array = @io.swagger.v3.oas.annotations.media.ArraySchema(uniqueItems = false, schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = org.openrewrite.openapi.swagger.Donut.class))))})
                   void method() {}
               }
               """
