@@ -1,17 +1,54 @@
-![Logo](https://github.com/openrewrite/rewrite/raw/main/doc/logo-oss.png)
-### Migrate OpenAPI. Automatically.
+# Demonstrate Swagger API upgrade using [rewrite-openapi](https://github.com/openrewrite/rewrite-openapi)
 
-[![ci](https://github.com/openrewrite/rewrite-openapi/actions/workflows/ci.yml/badge.svg)](https://github.com/openrewrite/rewrite-openapi/actions/workflows/ci.yml)
-[![Apache 2.0](https://img.shields.io/github/license/openrewrite/rewrite-openapi.svg)](https://www.apache.org/licenses/LICENSE-2.0)
-[![Maven Central](https://img.shields.io/maven-central/v/org.openrewrite.recipe/rewrite-openapi.svg)](https://mvnrepository.com/artifact/org.openrewrite.recipe/rewrite-openapi)
-[![Revved up by Develocity](https://img.shields.io/badge/Revved%20up%20by-Develocity-06A0CE?logo=Gradle&labelColor=02303A)](https://ge.openrewrite.org/scans)
+Current version of the rewrite-openapi gradle plugin has limited support for some annotation parameters.
 
-### What is this?
+Plugin was extended due to missing features [with my version](https://github.com/poprygun/rewrite-openapi)
 
-This project implements a [Rewrite module](https://github.com/openrewrite/rewrite) that performs common tasks when migrating to new version of OpenAPI.  
+Features added:
 
-Browse [a selection of recipes available through this module in the recipe catalog](https://docs.openrewrite.org/recipes/openapi).
+- `@ApiResponse(code = 200, message = "successful operation", response = Donut.class, responseContainer = "List")`, responseContainer
+and response has to be substituted as follows `@ApiResponse(content = @io.swagger.v3.oas.annotations.media.Content(array = @io.swagger.v3.oas.annotations.media.ArraySchema(uniqueItems = false, schema = @io.swagger.v3.oas.annotations.media.Schema(implementation = org.openrewrite.openapi.swagger.Donut.class))))})`
 
-## Contributing
 
-We appreciate all types of contributions. See the [contributing guide](https://github.com/openrewrite/.github/blob/main/CONTRIBUTING.md) for detailed instructions on how to get started.
+Run command to publish this recipe to local repostiory
+
+```bash
+./gradlew clean build publishToMavenLocal
+```
+
+## From the project that needs Swagger upgrade
+
+Make sure to add snapshot repository reference to `.m2/settings.xml` as plugin may depend on snapshot dependencies
+
+```xml
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 https://maven.apache.org/xsd/settings-1.0.0.xsd">
+    <profiles>
+        <profile>
+            <id>allow-snapshots</id>
+            <activation>
+                <activeByDefault>true</activeByDefault>
+            </activation>
+            <repositories>
+                <repository>
+                    <id>snapshots-repo</id>
+                    <url>https://oss.sonatype.org/content/repositories/snapshots</url>
+                    <releases>
+                        <enabled>false</enabled>
+                    </releases>
+                    <snapshots>
+                        <enabled>true</enabled>
+                    </snapshots>
+                </repository>
+            </repositories>
+        </profile>
+    </profiles>
+</settings>
+```
+
+```bash
+./mvnw -U org.openrewrite.maven:rewrite-maven-plugin:run \
+  -Drewrite.recipeArtifactCoordinates=org.openrewrite.recipe:rewrite-openapi:0.1.0-SNAPSHOT \
+  -Drewrite.activeRecipes=org.openrewrite.openapi.swagger.SwaggerToOpenAPI
+```
