@@ -31,8 +31,6 @@ import java.util.List;
 import java.util.Optional;
 
 public class ConvertApiResponseContainerToContent extends Recipe {
-
-    //    private static final AnnotationMatcher ANNOTATION_MATCHER = new AnnotationMatcher("@io.swagger.v3.oas.annotations.responses.ApiResponse(response = *, responseContainer = \"List\")");
     private static final AnnotationMatcher ANNOTATION_MATCHER = new AnnotationMatcher("@io.swagger.v3.oas.annotations.responses.ApiResponse");
 
     @Override

@@ -54,9 +54,6 @@ recipeList:
       type: jar
       familyPattern: io.swagger.v3*
       acceptTransitive: true
-  - org.openrewrite.maven.RemoveDependency:
-      groupId: io.springfox
-      artifactId: springfox-swagger2
 
 ---
 type: specs.openrewrite.org/v1beta/recipe
