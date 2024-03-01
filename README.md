@@ -32,6 +32,10 @@ Make sure to add snapshot repository reference to `.m2/settings.xml` as plugin m
             </activation>
             <repositories>
                 <repository>
+                    <id>local-repo</id>
+                    <url>file://${user.home}/.m2/repository</url>
+                </repository>
+                <repository>
                     <id>snapshots-repo</id>
                     <url>https://oss.sonatype.org/content/repositories/snapshots</url>
                     <releases>
