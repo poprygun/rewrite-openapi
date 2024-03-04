@@ -16,7 +16,10 @@
 
 package org.openrewrite.openapi.swagger;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.EqualsAndHashCode;
+import org.openrewrite.internal.lang.NonNull;
 import lombok.Value;
 import org.openrewrite.ExecutionContext;
 import org.openrewrite.Option;
@@ -27,12 +30,18 @@ import org.openrewrite.java.tree.J;
 
 @Value
 @EqualsAndHashCode(callSuper=false)
-public class RemoveClazz extends Recipe{
+public class RemoveClazzRecipe extends Recipe{
 
     @Option(displayName = "Java Type package",
             description = "Class will be deleted when usage of types from this package found",
             example = "com.yourorg")
+    @NonNull
     String typePackage;
+
+    @JsonCreator
+    public RemoveClazzRecipe(@NonNull @JsonProperty("typePackage") String typePackage) {
+        this.typePackage = typePackage;
+    }
 
     @Override
     public String getDisplayName() {

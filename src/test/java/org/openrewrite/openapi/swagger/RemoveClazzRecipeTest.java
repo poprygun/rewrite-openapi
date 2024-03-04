@@ -21,12 +21,12 @@ import org.openrewrite.test.RewriteTest;
 
 import static org.openrewrite.java.Assertions.java;
 
-public class RemoveClazzTest implements RewriteTest {
+public class RemoveClazzRecipeTest implements RewriteTest {
 
     @Test
     void deleteTypeIfImportFound() {
         rewriteRun(
-          spec -> spec.recipe(new RemoveClazz("java.util")),
+          spec -> spec.recipe(new RemoveClazzRecipe("java.util")),
           //language=java
           java(
             """
