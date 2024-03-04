@@ -17,6 +17,7 @@
 package org.openrewrite.openapi.swagger;
 
 import org.junit.jupiter.api.Test;
+import org.openrewrite.java.JavaParser;
 import org.openrewrite.test.RewriteTest;
 
 import static org.openrewrite.java.Assertions.java;
@@ -26,11 +27,15 @@ public class RemoveClazzRecipeTest implements RewriteTest {
     @Test
     void deleteTypeIfImportFound() {
         rewriteRun(
-          spec -> spec.recipe(new RemoveClazzRecipe("java.util")),
+          spec -> spec.recipe(new RemoveClazzRecipe("springfox\\.documentation(\\..+)?"))
+            .parser(JavaParser.fromJavaVersion().classpath("swagger-annotations-1.+")),
           //language=java
           java(
             """
-            import java.util.List;
+            import springfox.documentation.builders.ApiInfoBuilder;
+            import springfox.documentation.builders.RequestHandlerSelectors;
+            import springfox.documentation.service.ApiInfo;
+            import springfox.documentation.service.Contact;
             
             public class TestClass {
             }

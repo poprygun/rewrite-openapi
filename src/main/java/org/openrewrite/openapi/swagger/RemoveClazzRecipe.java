@@ -32,9 +32,9 @@ import org.openrewrite.java.tree.J;
 @EqualsAndHashCode(callSuper=false)
 public class RemoveClazzRecipe extends Recipe{
 
-    @Option(displayName = "Java Type package",
+    @Option(displayName = "Java Type package regex",
             description = "Class will be deleted when usage of types from this package found",
-            example = "com.yourorg")
+            example = "springfox\\.documentation(\\..+)?")
     @NonNull
     String typePackage;
 
@@ -58,7 +58,7 @@ public class RemoveClazzRecipe extends Recipe{
         return new JavaIsoVisitor<ExecutionContext>() {
             @Override
             public J.CompilationUnit visitCompilationUnit(J.CompilationUnit cu, ExecutionContext executionContext) {
-                if (cu.getImports().stream().anyMatch(anImport -> anImport.getPackageName().equals(typePackage))) {
+                if (cu.getImports().stream().anyMatch(anImport -> anImport.getPackageName().matches(typePackage))) {
                     return null;
                 }
                 return super.visitCompilationUnit(cu, executionContext);
